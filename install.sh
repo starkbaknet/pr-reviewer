@@ -24,6 +24,7 @@ Then runs "prr setup" to ask for the Gitea URL and token, unless ./.env
 already exists.
 
   --prefix DIR   install under DIR instead of ~/.local
+  GO=/path/to/go use that Go binary (when it is not on PATH)
   --service      also install and start a systemd user service that keeps
                  "prr serve" running (dashboard + MCP endpoint)
   --no-claude    skip the skill and the MCP registration
@@ -74,12 +75,27 @@ if [ $uninstall = 1 ]; then
 	exit 0
 fi
 
-command -v go >/dev/null || die "Go is not installed. Debian/Ubuntu: sudo apt install golang-go; macOS: brew install go; other: https://go.dev/dl"
-echo "go $(go env GOVERSION | sed s/^go//)"
+# Find go even when it is not on PATH: a tarball under /usr/local, the
+# Debian/Fedora packages, snap, a per-user install, or sudo's trimmed PATH.
+find_go() {
+	[ -n "${GO:-}" ] && [ -x "$GO" ] && { echo "$GO"; return; }
+	command -v go 2>/dev/null && return
+	home=${SUDO_USER:+$(getent passwd "$SUDO_USER" | cut -d: -f6)}
+	for d in /usr/local/go/bin /usr/lib/go/bin /usr/lib/golang/bin /usr/lib/go-*/bin \
+		/snap/bin /opt/go/bin "${GOROOT:-/nonexistent}/bin" \
+		"$HOME/go/bin" "$HOME/.go/bin" "$HOME/sdk"/go*/bin \
+		"${home:-/nonexistent}/go/bin" "${home:-/nonexistent}/.go/bin"; do
+		[ -x "$d/go" ] && { echo "$d/go"; return; }
+	done
+	return 1
+}
+
+go=$(find_go) || die "cannot find go. Install it (Debian/Ubuntu: sudo apt install golang-go; Fedora/RHEL: sudo dnf install golang; other: https://go.dev/dl) or point me at it: GO=/path/to/go ./install.sh"
+echo "go $("$go" env GOVERSION | sed s/^go//) ($go)"
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-(cd "$here" && go build -trimpath -ldflags='-s -w' -o "$tmp/prr" ./cmd/prr)
+(cd "$here" && "$go" build -trimpath -ldflags='-s -w' -o "$tmp/prr" ./cmd/prr)
 
 mkdir -p "$bin" "$man"
 install -m 755 "$tmp/prr" "$bin/prr"
