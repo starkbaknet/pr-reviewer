@@ -1,7 +1,9 @@
-prr
-===
+pr-reviewer (prr)
+=================
 
 Review Gitea pull requests from Claude Code.
+
+    https://github.com/starkbaknet/pr-reviewer
 
 prr is an MCP server. Claude calls it to list repositories and pull
 requests, read the diff and the surrounding code, and post the review
@@ -19,7 +21,8 @@ No Anthropic API key is involved; Claude Code is the reviewer.
 Install
 -------
 
-    git clone <repo> && cd pr-reviewer
+    git clone git@github.com:starkbaknet/pr-reviewer.git
+    cd pr-reviewer
     ./install.sh --service
 
 This builds the binary with Go, installs `prr` and its man page under
@@ -45,7 +48,7 @@ Use
 Restart Claude Code once after installing so it picks up the MCP
 server, then:
 
-    /review-pr baktash/nest-dokploy-demo#1
+    /prr baktash/nest-dokploy-demo#1
     post it
     what did the author fix since my review?
 
