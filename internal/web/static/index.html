@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>prr</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="logo">⟡</span>
+      <div><strong>prr</strong><div class="muted small">Gitea PR review</div></div>
+    </div>
+    <div id="sessions" class="sessions"><div class="muted pad">Loading…</div></div>
+    <div class="sidebar-foot muted small">
+      Sessions appear when Claude calls <code>get_pull</code>.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div id="empty" class="empty">
+      <h2>No session selected</h2>
+      <p class="muted">Start a review in Claude Code — <code>"review pr owner/repo#12"</code> — and it will show up on the left.</p>
+    </div>
+
+    <div id="detail" class="detail hidden">
+      <header class="pr-head">
+        <div>
+          <div class="muted small" id="pr-repo"></div>
+          <h1 id="pr-title"></h1>
+          <div class="muted small" id="pr-meta"></div>
+        </div>
+        <div class="head-right">
+          <span id="pr-state" class="badge"></span>
+          <a id="pr-link" target="_blank" rel="noopener" class="btn">Open in Gitea ↗</a>
+        </div>
+      </header>
+
+      <section class="stats" id="stats"></section>
+
+      <nav class="tabs">
+        <button class="tab active" data-tab="timeline">Timeline</button>
+        <button class="tab" data-tab="comments">Comments</button>
+        <button class="tab" data-tab="activity">Activity since review</button>
+      </nav>
+
+      <section id="tab-timeline" class="tab-panel"></section>
+      <section id="tab-comments" class="tab-panel hidden"></section>
+      <section id="tab-activity" class="tab-panel hidden"></section>
+    </div>
+  </main>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
