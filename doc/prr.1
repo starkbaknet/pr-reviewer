@@ -1,0 +1,210 @@
+.TH PRR 1 "October 2026" "prr 0.3.0" "User Commands"
+.SH NAME
+prr \- review Gitea pull requests with Claude
+.SH SYNOPSIS
+.B prr serve
+.RB [ \-\-addr
+.IR host:port ]
+.br
+.B prr mcp
+.br
+.B prr setup
+.RB [ \-\-global ]
+.br
+.B prr check
+.br
+.B prr version
+.br
+.B prr help
+.SH DESCRIPTION
+.B prr
+connects Claude Code to a Gitea server so that pull requests can be reviewed
+from the Claude Code prompt.
+It is an MCP server: Claude calls its tools to list repositories and pull
+requests, read the annotated diff and any file in the repository, record
+findings, and post the review with inline comments.
+Everything Claude does is written to a session file per pull request and
+shown on a web dashboard, together with the live state of the review on
+Gitea: which inline comments the author has resolved, what was pushed since,
+CI status and whether the pull request was merged.
+.SH COMMANDS
+.TP
+.B serve
+Start the dashboard at
+.B http://ADDR/
+and the MCP endpoint at
+.BR http://ADDR/mcp .
+Register the endpoint once with
+.B claude mcp add \-\-transport http prr http://127.0.0.1:8787/mcp
+and it is available in every Claude Code session while
+.B serve
+runs.
+.TP
+.B mcp
+Run the MCP server on standard input and output.
+This is the stdio transport for
+.BR "claude mcp add prr \-\- prr mcp" .
+It needs no running server but must be able to find the configuration;
+set
+.B PRR_ENV
+to the path of the project
+.I .env
+when Claude Code is started from another directory.
+.TP
+.B setup
+Ask for the Gitea URL and token and write them to
+.I ./.env
+(or, with
+.BR \-\-global ,
+to
+.IR ~/.config/prr/config.env ).
+The token is checked against Gitea before the next steps are printed.
+.TP
+.B check
+Verify the Gitea connection and print which configuration file and data
+directory are in use.
+.SH TOOLS
+The MCP tools, as Claude sees them.
+Tools marked
+.I write
+change the pull request on Gitea; Claude Code asks before running them unless
+told otherwise, and the server instructions tell Claude to post only when the
+human asks.
+.TP
+.B list_repos
+Repositories the token can see.
+.TP
+.B list_pulls
+Pull requests in a repository.
+.TP
+.B get_pull
+Metadata, description, changed files and the annotated diff of one pull
+request.
+Starts the session shown on the dashboard.
+.TP
+.B get_diff
+The annotated diff of one changed file, for pull requests too large to inline.
+.TP
+.B read_file, list_dir
+Read any file, or list any directory, at the head or base of the pull request.
+.TP
+.B get_comments
+Reviews, inline comments and their resolved state, and the conversation
+already on the pull request.
+.TP
+.B review_status
+Which inline comments the author resolved, commits pushed since the review,
+CI status and merge state.
+.TP
+.B note
+Record a finding, summary, decision or question on the dashboard timeline.
+.TP
+.BR post_review " (write)"
+Post a review with inline comments.
+Every comment is given as fields and rendered the same way:
+the issue in its simplest form, a copy-pasteable fix (a one-click Gitea
+suggestion when it replaces exactly the commented line), why the fix is
+right, and why the obvious alternative is not.
+Comment positions are checked against the diff before anything is sent.
+.TP
+.BR post_comment " (write)"
+Post a plain comment on the pull request conversation.
+.SH DIFF FORMAT
+Diffs are shown with two line-number columns followed by the usual marker:
+.PP
+.nf
+  OLD   NEW |
+   11     - |-  const b = 2;
+    -    11 |+  const b = 3;
+   12    13 |   return a + b;
+.fi
+.PP
+The NEW column is the line number for added and context lines, the OLD column
+for removed lines.
+These are the numbers Gitea expects for inline comments.
+.SH CONFIGURATION
+Settings are read, lowest priority first, from
+.IR ~/.config/prr/config.env ,
+a
+.I .env
+next to the binary, the nearest
+.I .env
+in the current directory or a parent, the file named by
+.BR PRR_ENV ,
+and finally the environment.
+.TP
+.B GITEA_URL
+Base URL of the Gitea server. Required.
+.TP
+.B GITEA_TOKEN
+Access token from
+.IR GITEA_URL/user/settings/applications .
+Needs the scopes user (read), repository (read and write) and issue (read and
+write).
+Required.
+.TP
+.B PRR_ADDR
+Listen address for
+.BR serve .
+Default 127.0.0.1:8787.
+.TP
+.B PRR_DATA
+Directory for session files.
+Default
+.I data/
+next to the
+.I .env
+that holds the token.
+.TP
+.B PRR_DIFF_LIMIT
+Inline the whole diff in
+.B get_pull
+up to this many bytes; above it, Claude fetches files one by one with
+.BR get_diff .
+Default 120000.
+.TP
+.B PRR_ENV
+Path of one more env file to read, with priority over the project
+.IR .env .
+.SH FILES
+.TP
+.I ./.env
+Project configuration, written by
+.BR "prr setup" .
+.TP
+.I ./data/*.json
+One session per pull request: tool calls, notes and posted reviews.
+.TP
+.I ~/.config/systemd/user/prr.service
+Installed by
+.BR "install.sh \-\-service" .
+.SH NOTES
+Gitea refuses the APPROVED and REQUEST_CHANGES verdicts on a pull request
+opened by the same account the token belongs to.
+Use a separate reviewer account, or let
+.B post_review
+fall back to a COMMENT review with the verdict in the summary.
+.PP
+Links in Gitea API responses are built from the server's ROOT_URL setting;
+.B prr
+rewrites their origin to
+.B GITEA_URL
+so they work even when ROOT_URL is wrong.
+.SH EXAMPLES
+Set up and start:
+.PP
+.nf
+  ./install.sh \-\-service
+  prr check
+.fi
+.PP
+In Claude Code:
+.PP
+.nf
+  /review-pr baktash/nest-dokploy-demo#1
+  post it
+  what did the author fix since my review?
+.fi
+.SH SEE ALSO
+.BR claude (1),
+.BR systemctl (1)
